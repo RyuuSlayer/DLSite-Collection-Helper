@@ -79,3 +79,30 @@ def reset_all_marked_status(cursor):
         print("[DEBUG] Resetting all marked statuses to 0")
     cursor.execute("UPDATE dlsite_ids SET marked = 0")
     cursor.connection.commit()  # Commit the change immediately
+
+def add_or_update_id(dlsite_id, version="", tested="No"):
+    """Add or update a DLSite ID in the database."""
+    dlsite_id = dlsite_id.strip().upper()
+    version = version.strip() if version else ""
+    
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # Check if ID exists
+    cursor.execute("SELECT * FROM dlsite_ids WHERE dlsite_id = ?", (dlsite_id,))
+    existing = cursor.fetchone()
+    
+    if existing:
+        cursor.execute("""
+            UPDATE dlsite_ids 
+            SET version = ?, tested = ?
+            WHERE dlsite_id = ?
+        """, (version, tested, dlsite_id))
+    else:
+        cursor.execute("""
+            INSERT INTO dlsite_ids (dlsite_id, version, tested)
+            VALUES (?, ?, ?)
+        """, (dlsite_id, version, tested))
+    
+    conn.commit()
+    conn.close()

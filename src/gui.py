@@ -328,46 +328,21 @@ def prompt_for_folder_path():
 
 # Table update functions
 def sort_table():
-    global sort_order  # Declare it as global to modify it within the function
+    """Sort the table by DLSite ID."""
+    global sort_order
 
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT id, dlsite_id, tested, version, marked FROM dlsite_ids")
-
-    rows = cursor.fetchall()
+    # Get all items from the table
+    items = [(table.set(item, "ID"), item) for item in table.get_children()]
     
-    # Sort the rows based on the dlsite_id
-    rows = sorted(rows, key=lambda x: x[1], reverse=sort_order)
-    sort_order = not sort_order  # Toggle sort order for next click
+    # Sort items based on the ID (removing markers for sorting)
+    items.sort(key=lambda x: x[0].split(" - ")[1] if " - " in x[0] else x[0], reverse=sort_order)
     
-    # Clear the current table
-    for item in table.get_children():
-        table.delete(item)
-
-    # Insert sorted rows into the table
-    for row in rows:
-        entry_id, dlsite_id, tested, version, marked = row
-        tested = tested or "-"
-        
-        # Format version for display (add 'v' prefix if not empty and doesn't already have it)
-        display_version = "-"
-        if version:
-            if not version.lower().startswith('v'):
-                display_version = f"v{version}"
-            else:
-                display_version = version
-
-        # Modify the ID display based on marked status
-        if marked == 1:
-            dlsite_id = f"{PRESENT_MARKER} {dlsite_id}"
-        else:
-            dlsite_id = f"{MISSING_MARKER} {dlsite_id}"
-
-        # Insert the row into the table with entry_id as the unique identifier
-        table.insert("", "end", iid=entry_id, values=(dlsite_id, tested, display_version), tags=("marked" if marked else ""))
-
-    conn.close()
+    # Reorder items in the table
+    for index, (_, item) in enumerate(items):
+        table.move(item, "", index)
+    
+    # Toggle sort order for next click
+    sort_order = not sort_order
 
 # ID management functions
 def add_id():
@@ -808,7 +783,7 @@ def main():
     
     # Main window setup
     root = tk.Tk()
-    root.title("DLSite Collection Manager")
+    root.title("DLSite Collection Helper")
     root.geometry("800x400")
     
     # Create style for ttk widgets

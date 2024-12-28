@@ -1,4 +1,4 @@
-# DLSite Collection Manager
+# DLSite Collection Helper
 
 A desktop application for managing and tracking DLSite content versions with a user-friendly interface.
 
