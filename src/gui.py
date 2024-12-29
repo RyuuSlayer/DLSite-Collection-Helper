@@ -358,7 +358,7 @@ def prompt_for_folder_path() -> None:
         theme = DARK_THEME if current_theme == 'dark' else LIGHT_THEME
         confirm_window.configure(bg=theme['bg'])
         
-        # Create main frame with theme
+        # Main container with padding
         main_frame = ttk.Frame(confirm_window)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
@@ -452,74 +452,57 @@ def add_id() -> None:
     id_frame = ttk.Frame(form_frame)
     id_frame.pack(fill=tk.X, pady=(0, 15))
     id_label = ttk.Label(id_frame, text="DLSite ID:", width=12, anchor='e')
-    id_label.pack(side=tk.LEFT, padx=(0, 10))
-    id_entry = ttk.Entry(id_frame)
-    id_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    id_label.pack(side=tk.LEFT, padx=(0, 15))
+    id_entry = ttk.Entry(id_frame, width=30, font=('TkDefaultFont', 10))
+    id_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=3)
     
     # Version Entry with label frame
     version_frame = ttk.Frame(form_frame)
     version_frame.pack(fill=tk.X, pady=(0, 20))
     version_label = ttk.Label(version_frame, text="Version:", width=12, anchor='e')
-    version_label.pack(side=tk.LEFT, padx=(0, 10))
-    version_entry = ttk.Entry(version_frame)
-    version_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    version_label.pack(side=tk.LEFT, padx=(0, 15))
+    version_entry = ttk.Entry(version_frame, width=30, font=('TkDefaultFont', 10))
+    version_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=3)
     
-    def save_id() -> None:
-        dlsite_id = id_entry.get().strip().upper()
-        version = version_entry.get().strip()
-        
-        if not dlsite_id:
-            messagebox.showerror("Error", "ID cannot be empty.")
-            return
-
-        # Standardize version format
-        if version:
-            if version.lower().startswith('v'):
-                version = version[1:]
-            version = f"v{version}"
-        else:
-            version = ""
-
-        if DEBUG_ENABLED:
-            print(f"[DEBUG] Adding entry - ID: {dlsite_id}, Version: '{version}'")
-
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # Check for duplicate entry
-        cursor.execute(
-            "SELECT rowid FROM dlsite_ids WHERE dlsite_id = ? AND version = ?",
-            (dlsite_id, version)
-        )
-        if cursor.fetchone():
-            messagebox.showerror(
-                "Error",
-                f"An entry with ID {dlsite_id} and version {version} already exists."
-            )
-            conn.close()
-            return
-
-        # Add the new entry
-        cursor.execute(
-            "INSERT INTO dlsite_ids (dlsite_id, version, tested) VALUES (?, ?, ?)",
-            (dlsite_id, version, "No")
-        )
-        conn.commit()
-        conn.close()
-        
-        refresh_table()
-        add_window.destroy()
+    # Bottom frame for checkbox and buttons
+    bottom_frame = ttk.Frame(main_frame)
+    bottom_frame.pack(fill=tk.X, pady=(0, 0))
     
-    # Buttons frame
-    button_frame = ttk.Frame(main_frame)
-    button_frame.pack(fill=tk.X, pady=(20, 0))
+    # Tested checkbox
+    tested_var = tk.StringVar(value="No")
+    style.configure('Large.TCheckbutton',
+                   padding=(15, 8),
+                   font=('TkDefaultFont', 11))
+                   
+    tested_check = ttk.Checkbutton(
+        bottom_frame,
+        text="Tested",
+        variable=tested_var,
+        onvalue="Yes",
+        offvalue="No",
+        style='Large.TCheckbutton'
+    )
+    tested_check.pack(side=tk.LEFT)
     
-    # Save and Cancel buttons
-    save_button = ttk.Button(button_frame, text="Save", command=save_id)
-    save_button.pack(side=tk.RIGHT, padx=(5, 0))
+    # Buttons
+    button_frame = ttk.Frame(bottom_frame)
+    button_frame.pack(side=tk.RIGHT)
     
-    cancel_button = ttk.Button(button_frame, text="Cancel", command=add_window.destroy)
-    cancel_button.pack(side=tk.RIGHT)
+    cancel_button = ttk.Button(
+        button_frame,
+        text="Cancel",
+        command=add_window.destroy,
+        style='Large.TButton'
+    )
+    cancel_button.pack(side=tk.LEFT, padx=(0, 10))
+    
+    save_button = ttk.Button(
+        button_frame,
+        text="Save",
+        command=lambda: save_id(id_entry.get(), version_entry.get(), tested_var.get()),
+        style='Large.TButton'
+    )
+    save_button.pack(side=tk.LEFT)
     
     # Center window on parent
     add_window.update_idletasks()
@@ -531,6 +514,49 @@ def add_id() -> None:
     id_entry.focus_set()
     
     add_window.wait_window()
+
+def save_id(dlsite_id: str, version: str, tested: str) -> None:
+    if not dlsite_id:
+        messagebox.showerror("Error", "ID cannot be empty.")
+        return
+
+    # Standardize version format
+    if version:
+        if version.lower().startswith('v'):
+            version = version[1:]
+        version = f"v{version}"
+    else:
+        version = ""
+
+    if DEBUG_ENABLED:
+        print(f"[DEBUG] Adding entry - ID: {dlsite_id}, Version: '{version}'")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Check for duplicate entry
+    cursor.execute(
+        "SELECT rowid FROM dlsite_ids WHERE dlsite_id = ? AND version = ?",
+        (dlsite_id, version)
+    )
+    if cursor.fetchone():
+        messagebox.showerror(
+            "Error",
+            f"An entry with ID {dlsite_id} and version {version} already exists."
+        )
+        conn.close()
+        return
+
+    # Add the new entry
+    cursor.execute(
+        "INSERT INTO dlsite_ids (dlsite_id, version, tested) VALUES (?, ?, ?)",
+        (dlsite_id, version, tested)
+    )
+    conn.commit()
+    conn.close()
+        
+    refresh_table()
+    add_window.destroy()
 
 def edit_id(event: Optional[tk.Event] = None) -> None:
     """
@@ -577,10 +603,10 @@ def edit_id(event: Optional[tk.Event] = None) -> None:
     # Create edit window
     edit_window = tk.Toplevel(root)
     edit_window.title("Edit Entry")
-    edit_window.geometry("400x300")
+    edit_window.geometry("400x250")
     edit_window.resizable(False, False)
-    edit_window.transient(root)
-    edit_window.grab_set()
+    edit_window.transient(root)  # Make it modal
+    edit_window.grab_set()  # Make it modal
     
     # Apply current theme
     theme = DARK_THEME if current_theme == 'dark' else LIGHT_THEME
@@ -597,95 +623,59 @@ def edit_id(event: Optional[tk.Event] = None) -> None:
     # ID Entry with label frame
     id_frame = ttk.Frame(form_frame)
     id_frame.pack(fill=tk.X, pady=(0, 15))
-    id_label = ttk.Label(id_frame, text="DLSite ID:", width=12, anchor='e')
+    id_label = ttk.Label(id_frame, text="DLSite ID:", width=10, anchor='e')
     id_label.pack(side=tk.LEFT, padx=(0, 10))
-    id_entry = ttk.Entry(id_frame)
+    id_entry = ttk.Entry(id_frame, width=25, font=('TkDefaultFont', 10))
     id_entry.insert(0, dlsite_id)
-    id_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    id_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=2)
     
     # Version Entry with label frame
     version_frame = ttk.Frame(form_frame)
-    version_frame.pack(fill=tk.X, pady=(0, 15))
-    version_label = ttk.Label(version_frame, text="Version:", width=12, anchor='e')
+    version_frame.pack(fill=tk.X, pady=(0, 20))
+    version_label = ttk.Label(version_frame, text="Version:", width=10, anchor='e')
     version_label.pack(side=tk.LEFT, padx=(0, 10))
-    version_entry = ttk.Entry(version_frame)
+    version_entry = ttk.Entry(version_frame, width=25, font=('TkDefaultFont', 10))
     version_entry.insert(0, version_val)
-    version_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    version_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=2)
     
-    # Tested checkbox frame
-    tested_frame = ttk.Frame(form_frame)
-    tested_frame.pack(fill=tk.X, pady=(0, 20))
+    # Bottom frame for checkbox and buttons
+    bottom_frame = ttk.Frame(main_frame)
+    bottom_frame.pack(fill=tk.X, pady=(0, 0))
+    
+    # Tested checkbox
     tested_var = tk.StringVar(value=tested_val)
+    style.configure('Large.TCheckbutton',
+                   padding=(10, 5),
+                   font=('TkDefaultFont', 10))
     tested_check = ttk.Checkbutton(
-        tested_frame,
+        bottom_frame,
         text="Tested",
         variable=tested_var,
         onvalue="Yes",
-        offvalue="No"
+        offvalue="No",
+        style='Large.TCheckbutton'
     )
-    tested_check.pack(padx=(70, 0))  # Align with input fields
+    tested_check.pack(side=tk.LEFT)
     
-    def save_changes() -> None:
-        new_id = id_entry.get().strip()
-        new_tested = tested_var.get()
-        new_version = version_entry.get().strip()
-        
-        if not new_id:
-            messagebox.showerror("Error", "ID cannot be empty.")
-            return
-
-        # Standardize version format
-        if new_version:
-            if new_version.lower().startswith('v'):
-                new_version = new_version[1:]
-            new_version = f"v{new_version}"
-        else:
-            new_version = ""
-
-        if DEBUG_ENABLED:
-            print(f"[DEBUG] Updating entry - ID: {new_id}, Version: '{new_version}'")
-
-        conn = get_connection()
-        cursor = conn.cursor()
-        
-        # Check for duplicate entry
-        cursor.execute("""
-            SELECT rowid FROM dlsite_ids 
-            WHERE dlsite_id = ? AND version = ? AND rowid != ?
-        """, (new_id, new_version, entry_id))
-        
-        if cursor.fetchone():
-            messagebox.showerror(
-                "Error",
-                f"An entry with ID {new_id} and version {new_version} already exists."
-            )
-            conn.close()
-            return
-
-        # Update the entry
-        cursor.execute("""
-            UPDATE dlsite_ids 
-            SET dlsite_id = ?, tested = ?, version = ? 
-            WHERE rowid = ?
-        """, (new_id, new_tested, new_version, entry_id))
-        
-        conn.commit()
-        conn.close()
-        
-        # Refresh table and check folder
-        refresh_table()
-        edit_window.destroy()
+    # Buttons
+    button_frame = ttk.Frame(bottom_frame)
+    button_frame.pack(side=tk.RIGHT)
     
-    # Buttons frame
-    button_frame = ttk.Frame(main_frame)
-    button_frame.pack(fill=tk.X, pady=(20, 0))
+    cancel_button = ttk.Button(
+        button_frame,
+        text="Cancel",
+        command=edit_window.destroy,
+        style='Large.TButton'
+    )
+    cancel_button.pack(side=tk.LEFT, padx=(0, 10))
     
-    # Save and Cancel buttons
-    save_button = ttk.Button(button_frame, text="Save", command=save_changes)
-    save_button.pack(side=tk.RIGHT, padx=(5, 0))
-    
-    cancel_button = ttk.Button(button_frame, text="Cancel", command=edit_window.destroy)
-    cancel_button.pack(side=tk.RIGHT)
+    save_button = ttk.Button(
+        button_frame,
+        text="Save",
+        command=lambda: save_changes(entry_id, id_entry.get(), version_entry.get(), tested_var.get(), edit_window),
+        style='Large.TButton'
+    )
+    save_button.pack(side=tk.LEFT)
     
     # Center window on parent
     edit_window.update_idletasks()
@@ -697,6 +687,57 @@ def edit_id(event: Optional[tk.Event] = None) -> None:
     id_entry.focus_set()
     
     edit_window.wait_window()
+
+def save_changes(entry_id: str, dlsite_id: str, version: str, tested: str, window: tk.Toplevel) -> None:
+    new_id = dlsite_id.strip()
+    new_tested = tested
+    new_version = version.strip()
+    
+    if not new_id:
+        messagebox.showerror("Error", "ID cannot be empty.")
+        return
+
+    # Standardize version format
+    if new_version:
+        if new_version.lower().startswith('v'):
+            new_version = new_version[1:]
+        new_version = f"v{new_version}"
+    else:
+        new_version = ""
+
+    if DEBUG_ENABLED:
+        print(f"[DEBUG] Updating entry - ID: {new_id}, Version: '{new_version}'")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+        
+    # Check for duplicate entry
+    cursor.execute("""
+        SELECT rowid FROM dlsite_ids 
+        WHERE dlsite_id = ? AND version = ? AND rowid != ?
+    """, (new_id, new_version, entry_id))
+        
+    if cursor.fetchone():
+        messagebox.showerror(
+            "Error",
+            f"An entry with ID {new_id} and version {new_version} already exists."
+        )
+        conn.close()
+        return
+
+    # Update the entry
+    cursor.execute("""
+        UPDATE dlsite_ids 
+        SET dlsite_id = ?, tested = ?, version = ? 
+        WHERE rowid = ?
+    """, (new_id, new_tested, new_version, entry_id))
+        
+    conn.commit()
+    conn.close()
+        
+    # Refresh table and close window
+    refresh_table()
+    window.destroy()
 
 def remove_entry() -> None:
     """
