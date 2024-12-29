@@ -1,3 +1,19 @@
+"""
+Styles module for DLSite Collection Helper.
+
+This module defines the visual styling and theme configurations for the application.
+It includes color schemes for both light and dark themes, as well as display markers
+for indicating file presence/absence status.
+
+Color Schemes:
+    - Light Theme: Clean, professional light color scheme
+    - Dark Theme: Eye-friendly dark color scheme with good contrast
+
+Display Markers:
+    - PRESENT_MARKER (✓): Indicates a file is present in the collection
+    - MISSING_MARKER (✗): Indicates a file is missing from the collection
+"""
+
 # Theme colors and styling configurations
 LIGHT_THEME = {
     'bg': '#ffffff',

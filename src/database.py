@@ -1,15 +1,37 @@
+"""
+Database module for DLSite Collection Helper.
+
+This module handles all database operations including setup, backup, and CRUD operations
+for DLSite IDs and their associated metadata. It uses SQLite for data storage and
+provides functions for managing the database schema and content.
+
+Functions:
+    setup_database: Initialize or update the database schema
+    backup_database: Create a backup of the current database
+    get_connection: Get a connection to the SQLite database
+    update_marked_status: Update the presence status of DLSite IDs
+    reset_all_marked_status: Reset all presence statuses to unmarked
+    add_or_update_id: Add or update a DLSite ID in the database
+"""
+
 import os
 import shutil
 import sqlite3
 import time
 from config import DEBUG_ENABLED
+from typing import Optional
 
 # Constants
 BACKUP_DIR = "db-backup"
 DB_FILE = "dlsite_ids.db"
 
-def setup_database():
-    """Setup the database by creating table and adding columns if necessary."""
+def setup_database() -> None:
+    """
+    Initialize or update the database schema.
+    
+    Creates the necessary tables if they don't exist and performs any required
+    schema migrations for version updates.
+    """
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
@@ -32,8 +54,13 @@ def setup_database():
     conn.commit()
     conn.close()
 
-def backup_database():
-    """Creates a backup of the database, maintaining only the last 3 startup backups."""
+def backup_database() -> None:
+    """
+    Create a backup of the current database.
+    
+    Creates a timestamped copy of the database file in the backups folder.
+    Only keeps the 3 most recent backups.
+    """
     if not os.path.exists(BACKUP_DIR):
         os.makedirs(BACKUP_DIR)
 
@@ -59,29 +86,53 @@ def backup_database():
             os.remove(os.path.join(BACKUP_DIR, fname))
             print(f"Deleted old backup: {fname}")
 
-def get_connection():
-    """Get a database connection."""
+def get_connection() -> sqlite3.Connection:
+    """
+    Get a connection to the SQLite database.
+    
+    Returns:
+        sqlite3.Connection object for database operations
+    """
     return sqlite3.connect(DB_FILE)
 
-def update_marked_status(cursor, rowid, marked):
-    """Update the marked status for a specific entry."""
+def update_marked_status(cursor: sqlite3.Cursor, rowid: int, marked: bool) -> None:
+    """
+    Update the presence status of a DLSite ID.
+    
+    Args:
+        cursor: SQLite cursor object
+        rowid: Row ID of the DLSite ID to update
+        marked: Whether the ID is present (True) or absent (False)
+    """
     if DEBUG_ENABLED:
         print(f"[DEBUG] Updating marked status - rowid: {rowid}, marked: {marked}")
     cursor.execute(
         "UPDATE dlsite_ids SET marked = ? WHERE rowid = ?",
-        (marked, rowid)
+        (1 if marked else 0, rowid)
     )
     cursor.connection.commit()  # Commit the change immediately
 
-def reset_all_marked_status(cursor):
-    """Reset all marked statuses to 0."""
+def reset_all_marked_status(cursor: sqlite3.Cursor) -> None:
+    """
+    Reset all presence statuses to unmarked (absent).
+    
+    Args:
+        cursor: SQLite cursor object
+    """
     if DEBUG_ENABLED:
         print("[DEBUG] Resetting all marked statuses to 0")
     cursor.execute("UPDATE dlsite_ids SET marked = 0")
     cursor.connection.commit()  # Commit the change immediately
 
-def add_or_update_id(dlsite_id, version="", tested="No"):
-    """Add or update a DLSite ID in the database."""
+def add_or_update_id(dlsite_id: str, version: Optional[str] = "", tested: str = "No") -> None:
+    """
+    Add or update a DLSite ID in the database.
+    
+    Args:
+        dlsite_id: The DLSite ID to add or update
+        version: The version of the DLSite ID (optional)
+        tested: Whether the ID has been tested (default: "No")
+    """
     dlsite_id = dlsite_id.strip().upper()
     version = version.strip() if version else ""
     

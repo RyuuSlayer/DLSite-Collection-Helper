@@ -1,12 +1,36 @@
+"""
+File utilities module for DLSite Collection Helper.
+
+This module provides utility functions for file operations, version handling,
+and configuration management. It includes functions for parsing DLSite IDs,
+managing version information, and handling application configuration.
+
+Functions:
+    format_version: Format version string for display
+    strip_version_prefix: Remove version prefix from string
+    extract_id_and_version: Parse ID and version from filename
+    load_config: Load application configuration from file
+    save_config: Save application configuration to file
+"""
+
 import os
 import re
 import json
 from config import DEBUG_ENABLED
+from typing import Tuple, Dict, Optional, Union
 
 CONFIG_FILE = "config.json"
 
-def format_version(version):
-    """Format version string to ensure proper 'v' prefix."""
+def format_version(version: Optional[str]) -> str:
+    """
+    Format version string to ensure proper 'v' prefix.
+    
+    Args:
+        version: Version string to format, can be None
+        
+    Returns:
+        Formatted version string or "-" if version is None
+    """
     if not version or version.strip() == "-":  # Handle empty or placeholder
         return ""
     # Remove any existing 'v' prefix and any surrounding whitespace
@@ -16,8 +40,16 @@ def format_version(version):
     # Only add 'v' prefix if there's actually a version
     return f"v{version}" if version else ""
 
-def strip_version_prefix(version):
-    """Remove 'v' prefix from version if present."""
+def strip_version_prefix(version: str) -> str:
+    """
+    Remove 'v' prefix from version if present.
+    
+    Args:
+        version: Version string to remove prefix from
+        
+    Returns:
+        Version string with 'v' prefix removed
+    """
     if not version:
         return None
     version = version.strip()
@@ -25,8 +57,17 @@ def strip_version_prefix(version):
         return version[1:]
     return version
 
-def extract_id_and_version(filename, debug_enabled=False):
-    """Extract DLSite ID and version from filename."""
+def extract_id_and_version(filename: str, debug_enabled: bool = False) -> Tuple[str, Optional[str]]:
+    """
+    Extract DLSite ID and version from filename.
+    
+    Args:
+        filename: Name of the file to parse
+        debug_enabled: Flag to enable debug logging
+        
+    Returns:
+        Tuple containing (DLSite ID, version) where version may be None
+    """
     # Remove file extension
     name_without_ext = os.path.splitext(filename)[0]
     
@@ -75,8 +116,13 @@ def extract_id_and_version(filename, debug_enabled=False):
     
     return dlsite_id, version
 
-def load_config():
-    """Load configuration from file."""
+def load_config() -> Dict[str, Union[str, bool]]:
+    """
+    Load application configuration from file.
+    
+    Returns:
+        Dictionary containing configuration settings
+    """
     default_config = {
         'folder_path': None,
         'debug_enabled': False,
@@ -94,8 +140,13 @@ def load_config():
     
     return default_config
 
-def save_config(config):
-    """Save configuration to file."""
+def save_config(config: Dict[str, Union[str, bool]]) -> None:
+    """
+    Save application configuration to file.
+    
+    Args:
+        config: Dictionary containing configuration settings to save
+    """
     try:
         # Ensure all required keys are present
         required_keys = {'folder_path', 'debug_enabled', 'theme'}

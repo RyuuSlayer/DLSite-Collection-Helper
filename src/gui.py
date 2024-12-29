@@ -1,12 +1,42 @@
+"""
+Graphical User Interface module for DLSite Collection Helper.
+
+This module implements the main GUI interface using tkinter. It provides a user-friendly
+way to manage DLSite IDs, track their versions, and monitor their presence in a collection.
+
+Features:
+    - Add, edit, and remove DLSite IDs
+    - Track version information
+    - Monitor file presence
+    - Sort and filter entries
+    - Dark/light theme support
+    - Configuration management
+
+Classes:
+    None (uses functional programming style)
+
+Functions:
+    main: Initialize and run the main application window
+    refresh_table: Update the display table with current data
+    sort_table: Sort table entries by DLSite ID
+    add_id: Add a new DLSite ID
+    edit_id: Edit an existing DLSite ID
+    remove_entry: Remove a DLSite ID from the database
+    check_folder_for_ids: Scan folder for DLSite IDs
+    apply_theme: Apply the current theme to all widgets
+"""
+
 import os
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from tkinter.simpledialog import askstring
+import re
+from typing import Optional, Dict, Any, List, Tuple
 
 from styles import LIGHT_THEME, DARK_THEME, PRESENT_MARKER, MISSING_MARKER
 from database import (
     setup_database, backup_database, get_connection,
-    update_marked_status, reset_all_marked_status
+    update_marked_status, reset_all_marked_status, add_or_update_id
 )
 from file_utils import (
     format_version, strip_version_prefix, extract_id_and_version,
@@ -15,14 +45,20 @@ from file_utils import (
 from config import DEBUG_ENABLED
 
 # Global variables
-FOLDER_PATH = None
-current_theme = 'light'
-root = None
-table = None
-style = None
+FOLDER_PATH: Optional[str] = None
+current_theme: str = 'light'
+root: Optional[tk.Tk] = None
+table: Optional[ttk.Treeview] = None
+style: Optional[ttk.Style] = None
 
-def apply_theme():
-    """Apply the current theme to all widgets"""
+def apply_theme() -> None:
+    """
+    Apply the current theme to all widgets.
+    
+    Updates the visual appearance of all widgets based on the current theme
+    (light or dark). This includes colors, backgrounds, and highlights for
+    the table, buttons, and other UI elements.
+    """
     global current_theme
     theme = DARK_THEME if current_theme == 'dark' else LIGHT_THEME
     
@@ -136,8 +172,14 @@ def apply_theme():
     # Refresh table to ensure correct styling
     refresh_table()
 
-def check_folder_for_ids():
-    """Check if the folder contains the ID files and update the database."""
+def check_folder_for_ids() -> None:
+    """
+    Scan the configured folder for DLSite IDs.
+    
+    Searches through the configured folder for files containing DLSite IDs,
+    extracts version information if available, and updates the database with
+    their presence status.
+    """
     if not FOLDER_PATH or not os.path.exists(FOLDER_PATH):
         if DEBUG_ENABLED:
             print(f"[DEBUG] Invalid folder path: {FOLDER_PATH}")
@@ -217,8 +259,18 @@ def check_folder_for_ids():
     # Refresh the table display without checking folder again
     refresh_table(check_folder=False)
 
-def refresh_table(search_query=None, check_folder=True):
-    """Refresh the table with current data."""
+def refresh_table(search_query: Optional[str] = None, check_folder: bool = True) -> None:
+    """
+    Refresh the table with current data.
+    
+    Args:
+        search_query: Optional search string to filter results
+        check_folder: Whether to scan the folder for IDs before refreshing
+    
+    Updates the table display with the latest data from the database,
+    optionally filtering by a search query. Can also update file presence
+    status by scanning the configured folder.
+    """
     global table
     if table is None:
         return
@@ -264,15 +316,22 @@ def refresh_table(search_query=None, check_folder=True):
     sort_table(True)
 
 # Folder path management functions
-def load_folder_path():
-    """Load the folder path from the configuration file."""
+def load_folder_path() -> None:
+    """
+    Load the folder path from the configuration file.
+    """
     global FOLDER_PATH, current_theme
     config = load_config()
     FOLDER_PATH = config['folder_path']
     current_theme = config['theme']
 
-def save_folder_path(folder_path):
-    """Save the folder path to the config file."""
+def save_folder_path(folder_path: str) -> None:
+    """
+    Save the folder path to the config file.
+    
+    Args:
+        folder_path: The path to save
+    """
     global FOLDER_PATH
     FOLDER_PATH = folder_path
     config = {
@@ -282,8 +341,10 @@ def save_folder_path(folder_path):
     save_config(config)
     refresh_table()
 
-def prompt_for_folder_path():
-    """Prompt user to set the folder path."""
+def prompt_for_folder_path() -> None:
+    """
+    Prompt user to set the folder path.
+    """
     folder_path = filedialog.askdirectory()
     if folder_path:
         save_folder_path(folder_path)
@@ -327,12 +388,21 @@ def prompt_for_folder_path():
         confirm_window.wait_window()
 
 # Table update functions
-def sort_table(reverse=True):
-    """Sort the table by DLSite ID."""
+def sort_table(reverse: bool = True) -> None:
+    """
+    Sort the table by DLSite ID.
+    
+    Args:
+        reverse: Whether to sort in descending (True) or ascending (False) order
+    
+    Sorts the table entries by their DLSite ID, ignoring the presence markers.
+    The sort order toggles between ascending and descending when clicking the
+    column header.
+    """
     # Get all items from the table
     items = [(table.set(item, "ID"), item) for item in table.get_children()]
     
-    def natural_sort_key(id_str):
+    def natural_sort_key(id_str: str) -> str:
         # Extract the ID part after the marker, ignoring the marker character
         id_part = id_str.split(" - ", 1)[1] if " - " in id_str else id_str
         
@@ -352,8 +422,13 @@ def sort_table(reverse=True):
     table.heading("ID", command=lambda: sort_table(not reverse))
 
 # ID management functions
-def add_id():
-    """Add a new ID to the database."""
+def add_id() -> None:
+    """
+    Add a new DLSite ID.
+    
+    Opens a dialog for entering a new DLSite ID and its metadata (version,
+    tested status). Validates the input and adds it to the database if valid.
+    """
     add_window = tk.Toplevel(root)
     add_window.title("Add New Entry")
     add_window.geometry("400x250")
@@ -389,7 +464,7 @@ def add_id():
     version_entry = ttk.Entry(version_frame)
     version_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
     
-    def save_id():
+    def save_id() -> None:
         dlsite_id = id_entry.get().strip().upper()
         version = version_entry.get().strip()
         
@@ -457,8 +532,16 @@ def add_id():
     
     add_window.wait_window()
 
-def edit_id(event=None):
-    """Edit the selected ID's information."""
+def edit_id(event: Optional[tk.Event] = None) -> None:
+    """
+    Edit an existing DLSite ID.
+    
+    Args:
+        event: Optional event object from GUI interaction
+    
+    Opens a dialog for editing the selected DLSite ID's metadata. Updates
+    the database with any changes made.
+    """
     # Check if click was on header
     if event and event.widget.identify_region(event.x, event.y) == "heading":
         return
@@ -542,7 +625,7 @@ def edit_id(event=None):
     )
     tested_check.pack(padx=(70, 0))  # Align with input fields
     
-    def save_changes():
+    def save_changes() -> None:
         new_id = id_entry.get().strip()
         new_tested = tested_var.get()
         new_version = version_entry.get().strip()
@@ -615,8 +698,13 @@ def edit_id(event=None):
     
     edit_window.wait_window()
 
-def remove_entry():
-    """Remove selected entry from the database and table."""
+def remove_entry() -> None:
+    """
+    Remove a DLSite ID from the database.
+    
+    Removes the selected DLSite ID from the database after confirmation.
+    Updates the table display to reflect the removal.
+    """
     selected_item = table.selection()
     if not selected_item:
         messagebox.showerror("Error", "Please select an entry to remove.")
@@ -638,8 +726,10 @@ def remove_entry():
     refresh_table()
 
 # Debug logging functions
-def toggle_debug():
-    """Toggle debug mode and save to config."""
+def toggle_debug() -> None:
+    """
+    Toggle debug mode and save to config.
+    """
     global DEBUG_ENABLED
     DEBUG_ENABLED = not DEBUG_ENABLED
     save_config()
@@ -648,8 +738,15 @@ def toggle_debug():
                        if DEBUG_ENABLED else 
                        "Debug logging disabled. Restart application to apply changes.")
 
-def show_settings():
-    """Show settings window."""
+def show_settings() -> None:
+    """
+    Show settings window.
+    
+    Opens a dialog for configuring application settings including:
+    - Folder path for scanning
+    - Theme selection (light/dark)
+    - Debug mode toggle
+    """
     settings_window = tk.Toplevel(root)
     settings_window.title("Settings")
     settings_window.geometry("400x320")
@@ -736,7 +833,7 @@ def show_settings():
                           style='Settings.TLabel')
     path_value.pack(side=tk.LEFT, fill=tk.X, expand=True)
     
-    def update_folder_path():
+    def update_folder_path() -> None:
         folder = filedialog.askdirectory()
         if folder:
             save_folder_path(folder)
@@ -746,7 +843,7 @@ def show_settings():
                                 command=update_folder_path)
     change_path_btn.pack(padx=5, pady=5)
     
-    def apply_settings():
+    def apply_settings() -> None:
         global current_theme, DEBUG_ENABLED
         new_debug = debug_var.get()
         new_theme = theme_var.get()
@@ -779,8 +876,14 @@ def show_settings():
     
     settings_window.wait_window()
 
-def main():
-    """Main function to setup and run the application."""
+def main() -> None:
+    """
+    Initialize and run the main application window.
+    
+    Sets up the main window with all necessary widgets, initializes the database,
+    loads configuration, and starts the main event loop. This is the entry point
+    for the graphical interface.
+    """
     global root, table, style, FOLDER_PATH, current_theme, DEBUG_ENABLED
     
     # Hide __pycache__ directory if it exists
