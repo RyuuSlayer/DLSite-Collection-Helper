@@ -17,7 +17,6 @@ from config import DEBUG_ENABLED
 # Global variables
 FOLDER_PATH = None
 current_theme = 'light'
-sort_order = True  # True for ascending, False for descending
 root = None
 table = None
 style = None
@@ -254,14 +253,15 @@ def refresh_table(search_query=None, check_folder=True):
         # Format version for display
         display_version = format_version(version) if version else "-"
         
-        # Format the ID with prefix based on tested status and presence
-        if marked:
-            display_id = f"{PRESENT_MARKER} - {dlsite_id}"
-        else:
-            display_id = f"{MISSING_MARKER} - {dlsite_id}"
+        # Format the ID with prefix based on tested status and presence, ensuring consistent spacing
+        prefix = PRESENT_MARKER if marked else MISSING_MARKER
+        display_id = f"{prefix} - {dlsite_id}".strip()  # Ensure no extra whitespace
         table.insert("", "end", iid=rowid, values=(display_id, tested, display_version))
 
     conn.close()
+    
+    # Force initial descending sort
+    sort_table(True)
 
 # Folder path management functions
 def load_folder_path():
@@ -327,22 +327,29 @@ def prompt_for_folder_path():
         confirm_window.wait_window()
 
 # Table update functions
-def sort_table():
+def sort_table(reverse=True):
     """Sort the table by DLSite ID."""
-    global sort_order
-
     # Get all items from the table
     items = [(table.set(item, "ID"), item) for item in table.get_children()]
     
-    # Sort items based on the ID (removing markers for sorting)
-    items.sort(key=lambda x: x[0].split(" - ")[1] if " - " in x[0] else x[0], reverse=sort_order)
+    def natural_sort_key(id_str):
+        # Extract the ID part after the marker, ignoring the marker character
+        id_part = id_str.split(" - ", 1)[1] if " - " in id_str else id_str
+        
+        # For numeric IDs, pad them with zeros to align with RJ format
+        if id_part.isdigit():
+            return f"RJ{int(id_part):08d}"
+        return id_part
+    
+    # Sort items based on the ID
+    items.sort(key=lambda x: natural_sort_key(x[0]), reverse=reverse)
     
     # Reorder items in the table
     for index, (_, item) in enumerate(items):
         table.move(item, "", index)
     
-    # Toggle sort order for next click
-    sort_order = not sort_order
+    # Update the command to toggle the sort order next time
+    table.heading("ID", command=lambda: sort_table(not reverse))
 
 # ID management functions
 def add_id():
@@ -812,9 +819,15 @@ def main():
 
     # Create Treeview (table) first
     table = ttk.Treeview(tree_frame, columns=("ID", "Tested", "Version"), show="headings")
-    table.heading("ID", text="DLSite ID", command=lambda: sort_table())
+    table.heading("ID", text="DLSite ID", command=lambda: sort_table(False))  # First click will sort ascending
     table.heading("Tested", text="Tested")
     table.heading("Version", text="Version")
+    
+    # Set fixed column widths to prevent inconsistent spacing
+    table.column("ID", width=150, minwidth=150)
+    table.column("Tested", width=70, minwidth=70)
+    table.column("Version", width=70, minwidth=70)
+    
     table.pack(fill=tk.BOTH, expand=True)
 
     # Apply theme if dark mode

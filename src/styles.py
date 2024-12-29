@@ -28,5 +28,5 @@ DARK_THEME = {
 }
 
 # Constants for display
-PRESENT_MARKER = "✔️"  # Checkmark for present files
-MISSING_MARKER = "❌"  # X for missing files
+PRESENT_MARKER = "✓"  # Check mark (U+2713)
+MISSING_MARKER = "✗"  # Ballot X (U+2717)
