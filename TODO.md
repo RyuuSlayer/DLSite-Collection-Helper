@@ -1,0 +1,6 @@
+- Ability to scan a folder and add it's IDs & Versions automatically, thus making Adding IDs only necessary for files you haven't got.
+- Lightgreen visualization on files present in scanned directory.
+- Better keyboard only navigation all over the program.
+- Put a "Search..." placeholder into the searchbar.
+- Make searchbar autorefresh without having to press enter.
+- Make column entries bigger and easier to read.
