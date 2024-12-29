@@ -4,3 +4,4 @@
 - Put a "Search..." placeholder into the searchbar.
 - Make searchbar autorefresh without having to press enter.
 - Make column entries bigger and easier to read.
+- Find out why pycache is ignored from the .gitignore.
